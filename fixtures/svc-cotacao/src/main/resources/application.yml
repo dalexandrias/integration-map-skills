@@ -1,0 +1,10 @@
+spring:
+  application: { name: svc-cotacao }
+  datasource:
+    url: jdbc:oracle:thin:@//orclprd-scan:1521/SEGPRD
+    username: APP_COTACAO
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+parceiro:
+  url: ${PARTNER_URL}
+  timeout: 5s

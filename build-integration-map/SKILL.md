@@ -1,0 +1,115 @@
+---
+name: build-integration-map
+description: >-
+  Consolida os integrations.json de todos os repositórios clonados numa pasta e gera o mapa
+  de integração interativo em HTML — graph.json mais map.html, com faixas por camada
+  arquitetural, filtros, busca e raio de impacto. Use sempre que pedirem para gerar,
+  atualizar ou reconstruir o mapa de arquitetura, consolidar as integrações de vários
+  repositórios, montar a visão macro de como as aplicações conversam entre si, ver o
+  desenho de integração da área, ou responder quem consome um tópico e o que quebra se um
+  serviço cair. Use também para clonar ou atualizar em lote os repositórios do Azure DevOps
+  antes de escanear.
+---
+
+# build-integration-map
+
+Roda **uma vez** sobre a pasta que contém todos os repositórios clonados. Não lê código —
+lê os `integrations.json` que a `scan-integrations` já produziu.
+
+```
+~/repos/                                   ← raiz (você escolhe)
+├── svc-cotacao/docs/architecture/integrations.json
+├── svc-cotacao/docs/architecture/svc-cotacao.md
+├── consulta-cobertura/docs/architecture/...
+└── ... (×80)
+```
+
+## Comandos
+
+```bash
+# validar sem escrever nada
+python scripts/build_graph.py ~/repos --check
+
+# gerar o mapa
+python scripts/build_graph.py ~/repos --out ~/integration-map
+
+# com reconciliação de nomes
+python scripts/build_graph.py ~/repos --out ~/integration-map --aliases ~/integration-map/aliases.yml
+```
+
+Saída: `graph.json` e `map.html` na pasta `--out`. O `map.html` abre com duplo clique, sem
+servidor — os dados vão embutidos nele. Só depende da biblioteca padrão do Python; `pyyaml`
+é opcional e só para o `aliases.yml`.
+
+## Clonar e atualizar os repositórios
+
+`scripts/sync-repos.sh` lê um `repos.txt` (um repositório por linha) e clona ou atualiza
+todos. Usa o git já autenticado na máquina — não precisa de MCP nem de token no script.
+
+```bash
+./scripts/sync-repos.sh ~/repos repos.txt
+```
+
+Ele usa `--filter=blob:none --depth 1`: traz a árvore completa de arquivos e baixa o
+conteúdo só do que for realmente aberto. Em 80 repositórios a diferença de tempo e disco é
+grande, e para escanear é suficiente.
+
+## O trabalho de verdade é a identidade dos nós
+
+Gerar o grafo é o passo fácil. O que decide se o mapa presta é resolver quando o mesmo
+sistema foi citado com nomes diferentes por equipes diferentes: `api.osb`, `barramento`,
+`ESB_CORP`. Se não reconciliar, um sistema vira três nós e o mapa mente.
+
+Não corrija os scans — eles devem continuar fiéis ao que está no código. Reconcilie em
+`aliases.yml`, na pasta de saída:
+
+```yaml
+# id canônico: [outros nomes vistos pelos scans]
+api.osb: [barramento, ESB_CORP, api.esb]
+db.orcl-prd.SEGURO: [db.oracle.seguro, ORCL_SEGURO]
+consulta-cobertura: [api.consulta-cobertura, svc-cobertura]
+```
+
+Esse arquivo é mantido à mão e cresce a cada rodada. É o único artefato do conjunto que
+justifica edição manual, porque codifica conhecimento que não está em nenhum repositório.
+
+## Passos
+
+1. **Sincronizar** os repositórios (ou confirmar que a pasta está atualizada).
+2. **Rodar com `--check`** primeiro. Ele não escreve nada e lista todos os avisos.
+3. **Ler os avisos.** Eles são o produto tão quanto o mapa. Os que mais importam:
+   - *nome X usado por A e B* → candidato a alias
+   - *sem evidência* → o scan daquele repositório precisa ser refeito
+   - *sem ficha markdown* → falta rodar `document-application` ali
+   - *não tem nenhuma integração ligada* → nó órfão, geralmente id errado num scan
+   - *não resolvido* → pergunta em aberto para o time
+4. **Atualizar o `aliases.yml`** com o que os avisos revelaram e rodar de novo.
+5. **Gerar** sem `--check`.
+6. **Resumir no chat**: aplicações, nós, integrações por protocolo, quantas com confiança
+   baixa, e as três a cinco pendências mais relevantes. Não repita a lista inteira de avisos
+   — ela já está no painel lateral do mapa.
+
+Espere que a primeira rodada saia feia: muitos órfãos e muitos aliases faltando. Isso é
+normal e é justamente o valor — cada aviso é uma pergunta que ninguém tinha feito ainda
+sobre o parque de 80 aplicações.
+
+## O mapa
+
+Faixas horizontais por camada — Entradas, Aplicações, Mensageria, Dados, Externos. A faixa
+não é enfeite: é o que mantém 80 aplicações legíveis sem ninguém arrastar caixa.
+
+- clique num nó → dossiê com entradas, saídas, evidência de cada integração e link da ficha
+- duplo clique → raio de impacto a jusante, numerado por nível
+- várias integrações entre o mesmo par viram uma linha com contador
+- tracejado = assíncrono, traço grosso = crítico, translúcido = indício
+- filtros por tipo, criticidade e dono; `/` foca a busca; `Esc` limpa
+
+O `map.html` em `assets/` é o modelo. Não edite o `map.html` gerado na pasta de saída — ele
+é sobrescrito. Mudança de visual vai no modelo.
+
+## Referências
+
+- Esquema do `integrations.json`: veja `references/schema.md` da skill `scan-integrations`.
+- Para adicionar um tipo de nó novo: acrescente em `TYPES` no `assets/map.html` e em `LANES`
+  no `scripts/build_graph.py`. Antes disso, confirme que não é só um `subtype` de um tipo
+  existente — poucos tipos bem escolhidos é o que mantém o mapa legível.

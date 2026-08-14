@@ -1,0 +1,16 @@
+# artefatos gerados pelo build_graph.py
+graph.json
+map.html
+!build-integration-map/assets/map.html
+integration-map/
+
+# ambiente local
+repos.txt
+aliases.yml
+.venv/
+__pycache__/
+*.pyc
+
+# sistema
+.DS_Store
+Thumbs.db

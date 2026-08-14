@@ -1,0 +1,63 @@
+{
+  "schema": 1,
+  "app": {
+    "id": "portal-campo",
+    "name": "Portal de Campo",
+    "type": "frontend",
+    "subtype": "next",
+    "owner": "ISS",
+    "criticality": "medium",
+    "tech": [
+      "Next 14.2.3",
+      "React 18.3"
+    ],
+    "scanned_at": "2026-08-11",
+    "scanned_commit": "7f3c1ab"
+  },
+  "exposes": [
+    {
+      "kind": "rest",
+      "route": "GET /api/health",
+      "evidence": "app/api/health/route.ts:1"
+    }
+  ],
+  "integrations": [
+    {
+      "target": "svc-cotacao",
+      "target_name": "svc-cotacao",
+      "target_type": "app",
+      "relation": "calls",
+      "protocol": "rest",
+      "contract": "POST /cotacoes (via rewrite /bff/cotacao)",
+      "criticality": "high",
+      "evidence": "lib/api.ts:4",
+      "confidence": "high",
+      "note": "svc-cotacao.interno:8080 via rewrite next.config.js:3"
+    },
+    {
+      "target": "consulta-cobertura",
+      "target_name": "consulta-cobertura",
+      "target_type": "app",
+      "relation": "calls",
+      "protocol": "rest",
+      "contract": "GET /coberturas/{apolice}",
+      "criticality": "high",
+      "evidence": "lib/api.ts:7",
+      "confidence": "high",
+      "note": "consulta-cobertura.interno:7001, NEXT_PUBLIC_COBERTURA_URL (.env.example:1)"
+    },
+    {
+      "target": "consulta-cobertura",
+      "target_type": "app",
+      "relation": "calls",
+      "protocol": "rest",
+      "contract": "GET /carencias/{apolice}",
+      "criticality": "medium",
+      "evidence": "lib/api.ts:10",
+      "confidence": "high",
+      "target_name": "consulta-cobertura",
+      "note": "consulta-cobertura.interno:7001, NEXT_PUBLIC_COBERTURA_URL (.env.example:1)"
+    }
+  ],
+  "unresolved": []
+}

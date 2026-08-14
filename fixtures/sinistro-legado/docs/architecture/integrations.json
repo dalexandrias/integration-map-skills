@@ -1,0 +1,129 @@
+{
+  "schema": 1,
+  "app": {
+    "id": "sinistro-legado",
+    "name": "Sinistro (legado)",
+    "type": "app",
+    "subtype": "weblogic-war",
+    "owner": null,
+    "criticality": "high",
+    "tech": [
+      "Java 8",
+      "MyBatis 3.4.6",
+      "WebLogic (servlet 3.x)"
+    ],
+    "detail": "context-root /sinistro",
+    "scanned_at": "2026-08-11",
+    "scanned_commit": "b21e904"
+  },
+  "exposes": [
+    {
+      "kind": "http",
+      "route": "POST /sinistro/consultar",
+      "evidence": "src/main/webapp/WEB-INF/web.xml:3"
+    },
+    {
+      "kind": "page",
+      "route": "/sinistro/consulta.jsp",
+      "evidence": "src/main/webapp/consulta.jsp:1"
+    }
+  ],
+  "integrations": [
+    {
+      "target": "db.SEGPRD.SEGURO",
+      "target_name": "SEGPRD / SEGURO",
+      "target_type": "database",
+      "target_detail": "Oracle, conexão direta via DriverManager",
+      "relation": "reads",
+      "protocol": "jdbc",
+      "contract": "TB_SINISTRO, TB_FILA_PROCESSAMENTO",
+      "criticality": "high",
+      "evidence": "src/main/webapp/consulta.jsp:6",
+      "confidence": "high",
+      "note": "conexão aberta dentro do JSP, não pelo datasource do WebLogic"
+    },
+    {
+      "target": "db.SEGPRD.SEGURO",
+      "target_type": "database",
+      "relation": "writes",
+      "protocol": "jdbc",
+      "contract": "TB_FILA_PROCESSAMENTO",
+      "criticality": "high",
+      "evidence": "src/main/resources/mapper/SinistroMapper.xml:8",
+      "confidence": "high",
+      "note": "TB_FILA_PROCESSAMENTO é usada como fila (SELECT ... FOR UPDATE SKIP LOCKED + UPDATE STATUS)"
+    },
+    {
+      "target": "db.SEGPRD.APOLICE_OWNER",
+      "target_name": "SEGPRD / APOLICE_OWNER",
+      "target_type": "database",
+      "relation": "reads",
+      "protocol": "jdbc",
+      "contract": "TB_APOLICE, TB_COBERTURA — schema de terceiro",
+      "criticality": "high",
+      "evidence": "src/main/resources/mapper/SinistroMapper.xml:12",
+      "confidence": "high",
+      "note": "leitura direta em schema de outro sistema, sem API no meio"
+    },
+    {
+      "target": "consulta-cobertura",
+      "target_name": "Consulta de Cobertura",
+      "target_type": "app",
+      "relation": "calls",
+      "protocol": "rest",
+      "contract": "GET /cobertura-web/coberturas/{apolice}",
+      "timeout": "30s",
+      "criticality": "high",
+      "evidence": "src/main/java/br/com/seg/sinistro/web/ConsultaServlet.java:9",
+      "confidence": "high",
+      "note": "host consulta-cobertura.interno:7001 (config.properties:1)"
+    },
+    {
+      "target": "queue.RetornoParceiroQueue",
+      "target_type": "queue",
+      "target_detail": "fila JMS do WebLogic",
+      "relation": "consumes",
+      "protocol": "jms",
+      "criticality": "medium",
+      "evidence": "src/main/java/br/com/seg/sinistro/mdb/RetornoMDB.java:4",
+      "confidence": "high"
+    },
+    {
+      "target": "file.remessa-banco-conveniado",
+      "target_name": "Remessa banco conveniado",
+      "target_type": "file",
+      "target_detail": "SFTP sftp.bancoconveniado.com.br · REM_YYYYMMDD.txt",
+      "relation": "sends-file",
+      "protocol": "sftp",
+      "contract": "REM_<AAAAMMDD>.txt em /entrada/",
+      "criticality": "medium",
+      "evidence": "src/main/java/br/com/seg/sinistro/util/IntegracaoUtil.java:6",
+      "confidence": "high",
+      "note": "Java chama shell via Runtime.exec; o SFTP está em scripts/envia_arquivo.sh:3"
+    },
+    {
+      "target": "api.osb",
+      "target_name": "Barramento OSB",
+      "target_type": "external-api",
+      "relation": "calls",
+      "protocol": "soap",
+      "contract": "ProxyServices/ConsultaTarifa",
+      "criticality": "medium",
+      "evidence": "src/main/resources/config.properties:2",
+      "confidence": "low",
+      "note": "URL configurada mas nenhuma referência a url.osb encontrada no código — pode ser integração morta"
+    }
+  ],
+  "unresolved": [
+    {
+      "hint": "jdbc/SinistroDS",
+      "where": "src/main/webapp/WEB-INF/weblogic.xml:4",
+      "why": "datasource JNDI declarado mas nunca usado no código; host real está no config.xml do domínio, fora do repositório"
+    },
+    {
+      "hint": "System.getProperty(\"db.pwd\")",
+      "where": "src/main/webapp/consulta.jsp:5",
+      "why": "senha vem de propriedade de sistema definida no start do managed server"
+    }
+  ]
+}

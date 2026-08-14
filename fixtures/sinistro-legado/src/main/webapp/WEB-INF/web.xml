@@ -1,0 +1,3 @@
+<web-app><servlet><servlet-name>consulta</servlet-name>
+<servlet-class>br.com.seg.sinistro.web.ConsultaServlet</servlet-class></servlet>
+<servlet-mapping><servlet-name>consulta</servlet-name><url-pattern>/consultar</url-pattern></servlet-mapping></web-app>

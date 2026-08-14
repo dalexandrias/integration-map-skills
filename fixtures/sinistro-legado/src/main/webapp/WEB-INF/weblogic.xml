@@ -1,0 +1,7 @@
+<weblogic-web-app>
+  <context-root>/sinistro</context-root>
+  <resource-description>
+    <res-ref-name>jdbc/SinistroDS</res-ref-name>
+    <jndi-name>jdbc/SinistroDS</jndi-name>
+  </resource-description>
+</weblogic-web-app>

@@ -1,0 +1,13 @@
+<mapper namespace="br.com.seg.sinistro.dao.SinistroMapper">
+  <select id="proximoPendente" resultType="map">
+    SELECT * FROM SEGURO.TB_FILA_PROCESSAMENTO
+     WHERE STATUS = 'PENDENTE' AND ROWNUM = 1
+     FOR UPDATE SKIP LOCKED
+  </select>
+  <update id="marcarProcessado">
+    UPDATE SEGURO.TB_FILA_PROCESSAMENTO SET STATUS='OK' WHERE ID = #{id}
+  </update>
+  <select id="buscaCobertura" resultType="map">
+    SELECT * FROM APOLICE_OWNER.TB_COBERTURA WHERE NUM_APOLICE = #{ap}
+  </select>
+</mapper>
