@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.3.1
+
+Correções vindas do uso do mapa novo:
+
+- **Cursor de mão sobre a ficha.** O palco declara `cursor:grab` porque o fundo é
+  arrastável, e a ficha, o HUD, o banner, a tooltip e o estado vazio são HTML sobreposto
+  dentro dele — todos herdavam a mãozinha. Ler a ficha, rolar o painel ou selecionar um
+  trecho de evidência tinha cara de arrasto. Os sobrepostos passam a declarar cursor próprio.
+- **A busca agora lista as opções enquanto você digita**, e diz **onde** cada uma casou.
+  Antes ela só acendia nós no canvas e mostrava um número: quem buscava `kafka` via "2" e
+  precisava caçar visualmente o que tinha acendido. A lista ordena por relevância — nome
+  exato, prefixo, trecho do nome, id, campos do nó e, por último, protocolo ou contrato de
+  uma integração — e etiqueta o motivo quando não foi o nome, porque num mapa de integração
+  o nó costuma aparecer pelo contrato de uma aresta. `↑` `↓` andam na lista, `Enter` abre.
+- **O que casaria mas está escondido pelo filtro** aparece contado no rodapé da lista, com
+  botão de limpar. Antes esses resultados sumiam sem explicação e a busca parecia quebrada.
+- **Botão de limpar próprio** no lugar do `::-webkit-search-cancel-button`, que não segue o
+  tema nem tem estado de foco. O campo deixou de ser `type=search`: o controle nativo já
+  estava escondido e o `Esc` nativo limpava o campo antes de a lista fechar.
+- **`[hidden]` não escondia o botão de limpar.** A regra do navegador perde para um
+  `display` declarado pelo autor, então o botão aparecia mesmo com o campo vazio.
+- **Bytes NUL no template.** Três separadores de chave ficaram como caractere NUL literal em
+  vez do escape `\u0000`. Não quebrava o navegador, mas `file` classificava o `map.html` —
+  o modelo e todo mapa gerado — como `data` em vez de HTML, `grep` se recusava a imprimir as
+  linhas encontradas, e qualquer ferramenta que normalize texto poderia corromper o arquivo.
+
 ## 0.3.0
 
 Reescrita do visualizador. A avaliação anterior cobriu a qualidade dos dados; esta rodada
