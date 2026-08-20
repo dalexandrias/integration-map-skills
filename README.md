@@ -133,7 +133,7 @@ então escale.
 | `SKILL.md` | A skill. Comandos, como ler os avisos, o papel do `aliases.yml` |
 | `scripts/build_graph.py` | Varre os `integrations.json`, funde nós compartilhados, valida, gera `graph.json` e injeta no `map.html`. Só biblioteca padrão (`pyyaml` opcional, só para o `aliases.yml`) |
 | `scripts/sync-repos.sh` | Clona ou atualiza em lote os repositórios do `repos.txt`, usando o git já autenticado na máquina. Clone parcial e raso |
-| `assets/map.html` | O visualizador — **modelo**. Arquivo único, HTML+CSS+JS puro, sem dependência externa além das fontes |
+| `assets/map.html` | O visualizador — **modelo**. Arquivo único, HTML+CSS+JS puro, sem nenhuma dependência externa (nem fontes). Faixas por camada com ordenação que reduz cruzamentos, ficha por nó, os dois sentidos de propagação de falha, caminho entre dois nós, tema claro/escuro, exportação PNG/SVG e impressão |
 
 ### `fixtures/`
 

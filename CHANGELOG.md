@@ -1,5 +1,55 @@
 # Changelog
 
+## 0.3.0
+
+Reescrita do visualizador. A avaliação anterior cobriu a qualidade dos dados; esta rodada
+cobriu o artefato que as pessoas de fato abrem — e ele estava quebrado no caminho principal:
+
+- **Clicar num nó não abria nada.** O `pointerdown` capturava o ponteiro no palco, e a
+  especificação manda redirecionar os eventos seguintes para o elemento que capturou. O
+  `pointerup` então relia `e.target`, achava o palco em vez do nó e caía no ramo que
+  *limpa* a seleção. Resultado: a ficha — entradas, saídas, evidência, link do documento,
+  a razão de o mapa existir — era inalcançável por clique, e todo clique apagava o que
+  estivesse selecionado. O alvo agora é lido uma vez, no `pointerdown`, e guardado. A mesma
+  armadilha engolia os cliques dos controles sobrepostos ao palco (zoom, estado vazio,
+  links de navegação da própria ficha); o palco passou a só reagir ao que nasce dentro do SVG.
+- **O raio de impacto respondia a pergunta errada.** Ele seguia as setas, que mostram fluxo
+  de dados. Numa chamada síncrona a falha sobe *contra* a seta: se o serviço cai, quem para
+  é quem chamou. O mapa afirmava o contrário com aparência de resposta certa. Agora há um
+  grafo de falha derivado por tipo de relação, dois modos explícitos — *quem quebra se cair*
+  e *do que depende* — e cada salto marcado como **imediato** ou **degrada**, porque fila e
+  arquivo seguram um tempo antes de faltar dado.
+- **Layout por camadas com redução de cruzamentos**, no lugar do laço de força em X. Sobre
+  um grafo de 400 nós e 643 integrações: comprimento médio de aresta caiu de 3.253 px para
+  1.311 px (−60%) e a área de 7.469×3.024 para 3.052×2.388 — proporção que cabe numa tela em
+  vez de um fio horizontal. Determinístico: mesmo `graph.json`, mesmo desenho.
+- **Redesenho incremental.** O arrasto de um nó reconstruía faixas, arestas e nós inteiros
+  por `innerHTML`, a cada evento de movimento. Agora o DOM é montado uma vez e o arrasto move
+  um atributo. Primeiro desenho de 13,6 s para 0,7 s; arrasto de 122 ms para 48 ms por passo.
+- **Zero dependência externa, agora inclusive fontes.** O modelo baixava IBM Plex do Google
+  Fonts — numa máquina sem internet isso é espera e depois fonte trocada, com a largura das
+  caixas estimada por contagem de caracteres estourando o texto. Pilha do sistema, largura
+  medida de verdade, e o canvas de exportação deixa de ser contaminado por recurso remoto.
+- **Caminho entre dois nós.** Origem, destino, e as rotas mínimas destacadas com protocolo e
+  contrato de cada salto. Sem rota no sentido do fluxo, tenta sem direção e avisa; sem
+  caminho nenhum, diz que pode ser aresta ainda não escaneada em vez de deixar concluir.
+- **Exportar PNG e SVG, e imprimir.** O SVG sai com o próprio CSS e a paleta clara embutidos,
+  independente do tema da tela. A impressão enquadra o grafo inteiro em paisagem, com título
+  e data.
+- **Tema claro e escuro**, respeitando a preferência do sistema, com alternador que persiste.
+- **Filtro que mentia.** Ao recarregar um grafo, as caixas voltavam marcadas mas o estado
+  interno do filtro não; nó marcado ficava invisível. Filtro zerado agora tem estado vazio
+  com botão de limpar, em vez de tela em branco sem explicação.
+- **Teclado e leitor de tela.** Nós focáveis com rótulo, `Tab` para percorrer, setas entre
+  vizinhos, `Enter` abre a ficha. Antes o `role="img"` escondia o grafo inteiro e não havia
+  como operar o mapa sem mouse.
+- **Busca mais larga** — id, dono, subtipo, tecnologia, protocolo e contrato, com contagem de
+  resultados e `Enter` percorrendo e centralizando cada um.
+- **`</script>` num campo de evidência derrubava a página.** O `build_graph.py` injetava o
+  JSON cru no HTML; agora escapa `<`, `>` e U+2028/2029 no bloco embutido. O `graph.json`
+  em disco continua JSON limpo.
+- **`aplicações` no resumo contava fichas**, não aplicações. Passaram a ser duas métricas.
+
 ## 0.2.0
 
 Rodada de avaliação contra quatro repositórios de teste (WebLogic legado, Spring Boot,

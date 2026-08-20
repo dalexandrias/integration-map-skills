@@ -96,20 +96,56 @@ sobre o parque de 80 aplicações.
 ## O mapa
 
 Faixas horizontais por camada — Entradas, Aplicações, Mensageria, Dados, Externos. A faixa
-não é enfeite: é o que mantém 80 aplicações legíveis sem ninguém arrastar caixa.
+não é enfeite: é o que mantém 80 aplicações legíveis sem ninguém arrastar caixa. Dentro da
+faixa, a ordem dos nós é calculada para reduzir cruzamentos (mediana dos vizinhos, guardando
+a melhor ordenação encontrada), e o resultado é determinístico: mesmo `graph.json`, mesmo
+desenho.
 
-- clique num nó → dossiê com entradas, saídas, evidência de cada integração e link da ficha
-- duplo clique → raio de impacto a jusante, numerado por nível
+- clique num nó → ficha com entradas, saídas, evidência de cada integração e link do
+  documento; a vista se desloca sozinha se o nó estiver atrás da ficha
 - várias integrações entre o mesmo par viram uma linha com contador
-- tracejado = assíncrono, traço grosso = crítico, translúcido = indício
-- filtros por tipo, criticidade e dono; `/` foca a busca; `Esc` limpa
+- tracejado = assíncrono, traço grosso = crítico, pontilhado translúcido = indício
+- filtros por tipo, criticidade e dono; busca por nome, id, dono, protocolo e contrato
+- tema claro e escuro; exportação em PNG e SVG; impressão/PDF em paisagem
+- `/` busca, `Enter` percorre os resultados, `0` ajusta, `Esc` limpa, `Tab` percorre os nós
+  e `Enter` abre a ficha do nó focado
+
+### As três perguntas do topo
+
+Com um nó selecionado:
+
+| Botão | Responde |
+|---|---|
+| **Quem quebra se cair** | o que para de funcionar se este nó cair |
+| **Do que depende** | de quem este nó precisa para funcionar |
+| **Caminho** | por onde o dado passa entre dois nós; clique na origem, ative, clique no destino |
+
+As setas do mapa mostram o **fluxo de dados**. A falha não segue o mesmo sentido, e é por
+isso que estes dois primeiros botões não são o mesmo botão invertido:
+
+- **chamada síncrona** (`calls`, `reads`, `writes` — REST, SOAP, JDBC): quem quebra é quem
+  chamou, **a montante da seta**. Se o `svc-cotacao` cai, quem para é o `portal-campo`.
+- **assíncrono** (`publishes`, `consumes`, `sends-file`, `reads-file` — Kafka, JMS, SFTP):
+  quem seca é o consumidor, **a jusante**. E não quebra na hora: a fila segura um tempo.
+
+Cada salto vem marcado como **imediato** ou **degrada** por esse motivo — a diferença muda
+decisão de plantão.
+
+Quando o `Caminho` não acha rota seguindo o fluxo de dados, ele tenta ignorando a direção
+das setas e avisa que fez isso. Não achar caminho nenhum pode ser real ou pode ser aresta
+que ninguém escaneou ainda; a ficha diz isso em vez de deixar você concluir sozinho.
 
 O `map.html` em `assets/` é o modelo. Não edite o `map.html` gerado na pasta de saída — ele
-é sobrescrito. Mudança de visual vai no modelo.
+é sobrescrito. Mudança de visual vai no modelo. Arquivo único, sem nenhuma dependência
+externa — nem fontes: abre por `file://` em máquina sem internet, e é isso que também
+permite exportar PNG sem contaminar o canvas.
 
 ## Referências
 
 - Esquema do `integrations.json`: veja `references/schema.md` da skill `scan-integrations`.
-- Para adicionar um tipo de nó novo: acrescente em `TYPES` no `assets/map.html` e em `LANES`
-  no `scripts/build_graph.py`. Antes disso, confirme que não é só um `subtype` de um tipo
+- Para adicionar um tipo de nó novo: acrescente em `TYPES` no `assets/map.html`, crie o
+  token `--t-<tipo>` nas duas paletas (clara e escura) e registre em `LANES` no
+  `scripts/build_graph.py`. Antes disso, confirme que não é só um `subtype` de um tipo
   existente — poucos tipos bem escolhidos é o que mantém o mapa legível.
+- Para mudar como uma relação propaga falha, mexa em `SYNC_REL`/`ASYNC_REL` no
+  `assets/map.html`: é de lá que saem os dois modos de impacto.

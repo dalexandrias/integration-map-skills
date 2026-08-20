@@ -280,9 +280,21 @@ def build(root: Path, out_dir: Path, aliases_path: Path | None, depth: int,
     return graph, len(scans)
 
 
+def embed_payload(graph: dict) -> str:
+    """JSON seguro para viver dentro de <script>.
+
+    Um `</script>` num campo de evidência ou nota — plausível em código legado — encerra
+    o bloco e derruba a página inteira. Escapar `<` e `>` resolve sem deixar de ser JSON
+    válido; U+2028/U+2029 são quebras de linha para o parser de JS e também precisam sair.
+    """
+    return (json.dumps(graph, ensure_ascii=False, indent=1)
+            .replace("<", "\\u003c").replace(">", "\\u003e")
+            .replace("\u2028", "\\u2028").replace("\u2029", "\\u2029"))
+
+
 def inject(template: Path, dest: Path, graph: dict) -> None:
     html = template.read_text(encoding="utf-8")
-    payload = json.dumps(graph, ensure_ascii=False, indent=1)
+    payload = embed_payload(graph)
     new, n = re.subn(
         r'(<script type="application/json" id="graph">)(.*?)(</script>)',
         lambda m: m.group(1) + "\n" + payload + "\n" + m.group(3),
