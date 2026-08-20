@@ -202,7 +202,9 @@ select.sel{width:100%;font-family:var(--mono);font-size:12px;padding:6px 8px;
    HTML sobreposto dentro dele e herdariam a mãozinha — ler e selecionar texto ficaria
    com cara de arrasto. Declaração própria no filho vence a herança do pai. */
 .panel,.hud,.banner,.empty,#tip,#print-head{cursor:auto}
-svg#svg{width:100%;height:100%;display:block}
+/* arrastar um nó selecionava o texto do rótulo, deixando o rastro azul no desenho.
+   Só no SVG: a ficha é irmã dele dentro do palco e precisa continuar copiável. */
+svg#svg{width:100%;height:100%;display:block;user-select:none;-webkit-user-select:none}
 
 .hud{position:absolute;left:12px;bottom:12px;display:flex;flex-direction:column;gap:8px;
   align-items:flex-start;pointer-events:none}
@@ -881,15 +883,32 @@ function layout(){
 
 /* ══ Traçado ═════════════════════════════════════════════════════════════════ */
 
+/* Geometria, não faixa. Arrastar um nó muda x e y e não toca em lane/row, então decidir
+   o traçado por lane/row olhava para um estado velho: o ramo de mesma faixa ancorava AS
+   DUAS pontas em A.y, e bastava arrastar um dos nós na vertical para a seta descolar da
+   caixa de destino e ficar pairando. Como só pares dentro da mesma faixa caem nesse ramo,
+   e num parque real quase todo par mesma-faixa é aplicação→aplicação, era a fileira de
+   aplicações que soltava as setas. Medindo a distância vertical de verdade, cada ponta
+   fica ancorada no seu próprio nó e o arrasto deixa de mentir.
+
+   Num layout recém-calculado isto desenha exatamente as mesmas curvas de antes: y é
+   monotônico em faixa e em linha, e o limiar H (54) fica abaixo dos H+VGAP (82) que
+   separam duas linhas — nenhuma aresta troca de ramo. */
 function pathOf(b){
   const A = byId.get(b.from), B = byId.get(b.to);
-  if(A.lane === B.lane && A.row === B.row){
-    const y = A.y + H/2, off = 34 + Math.min(140, Math.abs(B.x - A.x) * 0.18);
-    return `M${A.x},${y}C${A.x},${y+off} ${B.x},${y+off} ${B.x},${y}`;
+  const gap = B.y - A.y;
+  if(Math.abs(gap) < H){          // mesma altura: laço por baixo, saindo e entrando pela base
+    const y1 = A.y + H/2, y2 = B.y + H/2;
+    const off = 34 + Math.min(140, Math.abs(B.x - A.x) * 0.18);
+    return `M${A.x},${y1}C${A.x},${y1+off} ${B.x},${y2+off} ${B.x},${y2}`;
   }
-  const down = (B.lane > A.lane) || (B.lane === A.lane && B.row > A.row);
+  const down = gap > 0;
   const y1 = A.y + (down ? H/2 : -H/2), y2 = B.y + (down ? -H/2 : H/2), dy = y2 - y1;
-  return `M${A.x},${y1}C${A.x},${y1 + dy*0.45 + b.ch} ${B.x},${y2 - dy*0.45 + b.ch} ${B.x},${y2}`;
+  // o canal não pode ser maior que o vão: num vão curto ele jogaria os pontos de controle
+  // para trás do início e a curva estufaria por cima da caixa de origem
+  const lim = Math.abs(dy) * 0.5;
+  const ch = Math.max(-lim, Math.min(lim, b.ch));
+  return `M${A.x},${y1}C${A.x},${y1 + dy*0.45 + ch} ${B.x},${y2 - dy*0.45 + ch} ${B.x},${y2}`;
 }
 
 /* Constrói o DOM uma vez. Filtro, realce e arrasto depois só mexem em atributo ou

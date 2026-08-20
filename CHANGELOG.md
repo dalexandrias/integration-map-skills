@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.3.2
+
+- **Setas soltavam das caixas ao arrastar um nó.** O traçado era escolhido por `lane`/`row`,
+  e o ramo de "mesma faixa" ancorava **as duas pontas** na altura do nó de origem — verdade
+  só logo depois do layout. Arrastar muda `x` e `y` e não toca em `lane`/`row`, então a ponta
+  no destino continuava desenhada na altura da origem e a seta ficava pairando no vazio: uma
+  medição registrou 258 px de descolamento. Como só pares dentro da mesma faixa caíam nesse
+  ramo — e num parque real quase todo par mesma-faixa é aplicação→aplicação — era a fileira
+  de aplicações que soltava as setas, enquanto as arestas que cruzam faixas seguiam certas.
+  O grafo de exemplo embutido no `map.html` não tem nenhuma aresta dentro da mesma faixa, e
+  por isso o defeito não aparecia com os nós de teste. `pathOf` passa a decidir pela distância
+  vertical real e a ancorar cada ponta no seu próprio nó. Num layout recém-calculado o desenho
+  é byte a byte o mesmo de antes — verificado sobre 657 arestas em dois grafos.
+- **Curva estufando por cima da caixa de origem.** Com dois nós arrastados para perto na
+  vertical, o deslocamento de canal ficava maior que o vão e jogava os pontos de controle
+  para trás do início. Agora o canal é limitado pelo tamanho do vão, sem efeito no layout
+  normal.
+- **Arrastar selecionava o texto do rótulo**, deixando rastro azul sobre o desenho. A
+  seleção foi desligada só dentro do SVG; o texto da ficha continua copiável.
+
 ## 0.3.1
 
 Correções vindas do uso do mapa novo:
