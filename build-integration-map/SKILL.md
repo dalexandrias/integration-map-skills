@@ -105,10 +105,13 @@ desenho.
   documento; a vista se desloca sozinha se o nó estiver atrás da ficha
 - várias integrações entre o mesmo par viram uma linha com contador
 - tracejado = assíncrono, traço grosso = crítico, pontilhado translúcido = indício
-- filtros por tipo, criticidade e dono; busca por nome, id, dono, protocolo e contrato
+- filtros por tipo, criticidade e dono
+- a busca lista as opções conforme você digita, dizendo **onde** cada uma casou — nome, id,
+  dono, tecnologia, ou o protocolo/contrato de uma integração do nó. O que casaria mas está
+  escondido pelo filtro atual aparece contado no rodapé da lista, com botão de limpar
 - tema claro e escuro; exportação em PNG e SVG; impressão/PDF em paisagem
-- `/` busca, `Enter` percorre os resultados, `0` ajusta, `Esc` limpa, `Tab` percorre os nós
-  e `Enter` abre a ficha do nó focado
+- `/` foca a busca, `↑` `↓` andam na lista e `Enter` abre; `0` ajusta, `Esc` limpa,
+  `Tab` percorre os nós e `Enter` abre a ficha do nó focado
 
 ### As três perguntas do topo
 

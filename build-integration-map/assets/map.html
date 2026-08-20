@@ -119,13 +119,42 @@ header{display:flex;align-items:center;gap:14px;padding:9px 14px;background:var(
 .brand h1{font-size:14px;font-weight:650;letter-spacing:-.01em;margin:0;white-space:nowrap}
 .brand span{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);white-space:nowrap}
 .search{position:relative;margin-left:auto}
-.search input{font-family:var(--mono);font-size:12px;width:240px;padding:7px 62px 7px 28px;
+.search input{font-family:var(--mono);font-size:12px;width:252px;padding:7px 56px 7px 28px;
   border:1px solid var(--border-strong);background:var(--surface-2);color:var(--ink);border-radius:6px}
 .search input::placeholder{color:var(--ink-3)}
 .search input:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
 .search .ico{position:absolute;left:8px;top:8px;opacity:.45;pointer-events:none}
-.search .cnt{position:absolute;right:9px;top:8px;font-family:var(--mono);font-size:10.5px;
+.search .cnt{position:absolute;right:31px;top:8px;font-family:var(--mono);font-size:10.5px;
   color:var(--ink-3);pointer-events:none}
+.search .clr{position:absolute;right:6px;top:6px;width:21px;height:21px;padding:0;border:none;
+  background:none;color:var(--ink-3);border-radius:50%;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center}
+/* [hidden] do navegador perde para o display declarado acima — precisa ser explícito */
+.search .clr[hidden],.sug[hidden]{display:none}
+.search .clr:hover{background:var(--surface-3);color:var(--ink)}
+.search .clr:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+
+.sug{position:absolute;top:calc(100% + 6px);right:0;width:min(370px,86vw);z-index:30;
+  margin:0;padding:5px;list-style:none;background:var(--surface);
+  border:1px solid var(--border-strong);border-radius:8px;box-shadow:var(--shadow);
+  max-height:min(58vh,430px);overflow-y:auto}
+.sug li.opt{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:5px;
+  cursor:pointer;font-size:12.5px;color:var(--ink)}
+.sug li.opt.on,.sug li.opt:hover{background:var(--surface-3)}
+.sug .chip{width:9px;height:9px;border-radius:2.5px;flex:none}
+.sug .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sug .why{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--ink-3);
+  flex:none;max-width:48%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sug mark{background:var(--accent-soft);color:inherit;border-radius:2px;padding:0 1px}
+.sug .foot{display:flex;align-items:center;gap:8px;margin-top:3px;padding:7px 8px 3px;
+  border-top:1px solid var(--border);font-family:var(--mono);font-size:10.5px;color:var(--ink-3)}
+/* sozinho na lista, o divisor ficaria pairando sobre nada */
+.sug .foot:first-child{border-top:none;margin-top:0;padding-top:3px}
+.sug .foot button{font-family:var(--sans);font-size:11px;margin-left:auto;
+  border:1px solid var(--border-strong);background:var(--surface-2);color:var(--ink-2);
+  border-radius:5px;padding:2px 7px;cursor:pointer}
+.sug .foot button:hover{color:var(--ink);border-color:var(--ink-3)}
+.sug .none{padding:7px 8px;font-size:12.5px;color:var(--ink-3);font-style:italic}
 .tools{display:flex;gap:5px;flex-wrap:wrap}
 .tb{font-family:var(--sans);font-size:12px;font-weight:550;padding:7px 10px;
   border:1px solid var(--border-strong);background:var(--surface-2);color:var(--ink-2);
@@ -169,6 +198,10 @@ select.sel{width:100%;font-family:var(--mono);font-size:12px;padding:6px 8px;
 
 .stage{position:relative;overflow:hidden;background:var(--bg);cursor:grab;touch-action:none}
 .stage.panning{cursor:grabbing}
+/* O palco é arrastável, mas a ficha, o HUD, o banner, a tooltip e o estado vazio são
+   HTML sobreposto dentro dele e herdariam a mãozinha — ler e selecionar texto ficaria
+   com cara de arrasto. Declaração própria no filho vence a herança do pai. */
+.panel,.hud,.banner,.empty,#tip,#print-head{cursor:auto}
 svg#svg{width:100%;height:100%;display:block}
 
 .hud{position:absolute;left:12px;bottom:12px;display:flex;flex-direction:column;gap:8px;
@@ -284,8 +317,17 @@ svg#svg{width:100%;height:100%;display:block}
 
   <div class="search">
     <svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
-    <input id="q" type="search" placeholder="buscar no mapa…" aria-label="Buscar no mapa">
+    <!-- type=text, não search: o controle nativo do WebKit não segue o tema e o
+         Esc nativo limparia o campo antes de fechar a lista de sugestões -->
+    <input id="q" type="text" placeholder="buscar no mapa…" aria-label="Buscar no mapa"
+           autocomplete="off" role="combobox" aria-expanded="false" aria-controls="q-list"
+           aria-autocomplete="list" enterkeyhint="go">
     <span class="cnt" id="q-count"></span>
+    <button class="clr" id="q-clear" type="button" aria-label="Limpar busca" hidden>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+    <ul class="sug" id="q-list" role="listbox" aria-label="Resultados da busca" hidden></ul>
   </div>
 
   <div class="tools">
@@ -324,8 +366,9 @@ svg#svg{width:100%;height:100%;display:block}
     </div>
     <div class="grp"><h2>Como usar</h2>
       <p class="tip">Clique num nó para abrir a ficha. Arraste o fundo para mover,
-      <kbd>scroll</kbd> para zoom, arraste um nó para reposicionar. <kbd>/</kbd> busca,
-      <kbd>Enter</kbd> percorre os resultados, <kbd>0</kbd> ajusta, <kbd>Esc</kbd> limpa.
+      <kbd>scroll</kbd> para zoom, arraste um nó para reposicionar. <kbd>/</kbd> foca a
+      busca, que lista as opções conforme você digita — <kbd>↑</kbd> <kbd>↓</kbd> andam na
+      lista, <kbd>Enter</kbd> abre. <kbd>0</kbd> ajusta, <kbd>Esc</kbd> limpa.
       Com um nó selecionado, os três botões do topo respondem o que quebra, do que depende
       e por onde o dado passa.</p>
     </div>
@@ -467,7 +510,7 @@ let flowFwd = new Map();       // grafo de fluxo de dados, para o traçado de ca
 let lanes = [], laneBox = [];
 
 let picked = null, target = null, mode = "none", term = "";
-let matches = [], matchAt = -1;
+let matches = [], sugItems = [], sugAt = -1, sugHidden = 0;
 let view = {x:0, y:0, k:1};
 const F = {types:new Set(), crit:new Set(["high","medium","low"]), owner:""};
 
@@ -502,7 +545,7 @@ function initFonts(){
   mcache.clear();
 }
 function textW(s, font){
-  const k = font + " " + s;
+  const k = font + "\u0000" + s;
   let v = mcache.get(k);
   if(v === undefined){ mctx.font = font; v = mctx.measureText(s).width; mcache.set(k, v); }
   return v;
@@ -540,7 +583,7 @@ function load(data){
   // entre A e B desenhadas separadas viram borrão. O detalhe fica na ficha.
   const m = new Map();
   G.edges.forEach(e => {
-    const k = e.from + " " + e.to;
+    const k = e.from + "\u0000" + e.to;
     let b = m.get(k);
     if(!b) m.set(k, b = {from:e.from, to:e.to, items:[], async:false, crit:"low", conf:"high"});
     b.items.push(e);
@@ -570,8 +613,10 @@ function load(data){
       (w.length > 40 ? "<br>… e mais " + (w.length - 40) : "");
   }
 
-  picked = target = null; mode = "none"; term = ""; matches = []; matchAt = -1;
+  picked = target = null; mode = "none"; term = ""; matches = []; sugItems = [];
+  sugAt = -1; sugHidden = 0;
   $("#q").value = ""; $("#q-count").textContent = "";
+  $("#q-clear").hidden = true; closeSug();
   F.types = new Set(Object.keys(TYPES));
   F.crit = new Set(["high","medium","low"]);
   F.owner = "";
@@ -607,7 +652,7 @@ function buildFailGraph(){
     // assíncrono: a origem cai, o consumidor seca → aresta de falha a favor da seta
     const from = kind === "sync" ? e.to : e.from;
     const to   = kind === "sync" ? e.from : e.to;
-    const k = from + " " + to + " " + kind;
+    const k = from + "\u0000" + to + "\u0000" + kind;
     if(!seen.has(k)){
       seen.add(k);
       push(failFwd, from, {id:to, kind});
@@ -992,18 +1037,132 @@ function stats(vis){
   $("#s-low").className = low ? "alert" : "";
 }
 
-function searchBlob(n){
-  const parts = [n.id, n.name, n.owner, n.subtype, n.detail, (n.tech || []).join(" ")];
+const SUG_MAX = 8;
+
+/* Onde o termo casou decide a ordem — e vale ser dito. Num mapa de integração o nó
+   aparece muitas vezes por causa do contrato ou do protocolo de uma aresta, não do
+   próprio nome; sem essa etiqueta o resultado parece aleatório. */
+function rankMatch(n, t){
+  const nm = (n.name || "").toLowerCase(), id = (n.id || "").toLowerCase();
+  if(nm === t) return {tier:0};
+  if(nm.startsWith(t)) return {tier:1};
+  if(nm.includes(t)) return {tier:2};
+  if(id.includes(t)) return {tier:3, why:"id: " + n.id};
+  const campos = [["dono", n.owner], ["tipo", n.subtype], ["detalhe", n.detail],
+                  ["tecnologia", (n.tech || []).join(" ")]];
+  for(const [rot, v] of campos)
+    if(v && String(v).toLowerCase().includes(t)) return {tier:4, why:rot + ": " + v};
   for(const i of incident.get(n.id) || [])
-    for(const e of bundles[i].items) parts.push(e.protocol, e.contract, e.relation);
-  return parts.filter(Boolean).join(" ").toLowerCase();
+    for(const e of bundles[i].items){
+      if(e.protocol && e.protocol.toLowerCase().includes(t))
+        return {tier:5, why:"protocolo: " + e.protocol};
+      if(e.contract && e.contract.toLowerCase().includes(t))
+        return {tier:5, why:"contrato: " + e.contract};
+      const rel = REL[e.relation] || e.relation || "";
+      if(rel.toLowerCase().includes(t)) return {tier:5, why:"relação: " + rel};
+    }
+  return null;
+}
+function markTerm(str, t){
+  const i = String(str).toLowerCase().indexOf(t.toLowerCase());
+  if(i < 0) return esc(str);
+  return esc(String(str).slice(0, i)) + "<mark>" + esc(String(str).slice(i, i + t.length)) +
+         "</mark>" + esc(String(str).slice(i + t.length));
 }
 function runSearch(){
   const t = term.trim().toLowerCase();
-  matches = t ? G.nodes.filter(n => shown(n) && searchBlob(n).includes(t)).map(n => n.id) : [];
-  matchAt = -1;
-  $("#q-count").textContent = t ? (matches.length ? matches.length + " achado" + (matches.length > 1 ? "s" : "") : "nada") : "";
-  highlight();
+  $("#q-clear").hidden = !term.length;
+  if(!t){
+    matches = []; sugItems = []; sugAt = -1; sugHidden = 0;
+    $("#q-count").textContent = "";
+    closeSug(); highlight(); return;
+  }
+  const hits = [];
+  sugHidden = 0;
+  for(const n of G.nodes){
+    const r = rankMatch(n, t);
+    if(!r) continue;
+    if(!shown(n)){ sugHidden++; continue; }       // casa, mas o filtro escondeu
+    hits.push({n, tier:r.tier, why:r.why});
+  }
+  hits.sort((a, b) => a.tier - b.tier || a.n.name.localeCompare(b.n.name, "pt"));
+  sugItems = hits;
+  matches = hits.map(h => h.n.id);
+  sugAt = -1;
+  $("#q-count").textContent = matches.length || "";
+  drawSug(); highlight();
+}
+function drawSug(){
+  const list = $("#q-list"), t = term.trim();
+  list.textContent = "";
+  if(!t){ closeSug(); return; }
+  sugItems.slice(0, SUG_MAX).forEach((h, i) => {
+    const li = document.createElement("li");
+    li.className = "opt"; li.id = "q-opt-" + i;
+    li.setAttribute("role", "option");
+    li.dataset.id = h.n.id;
+    li.innerHTML = `<span class="chip" style="background:var(--t-${h.n.type})"></span>` +
+      `<span class="nm">${markTerm(h.n.name, t)}</span>` +
+      `<span class="why">${esc(h.why || TYPES[h.n.type].label)}</span>`;
+    list.appendChild(li);
+  });
+  if(!sugItems.length && !sugHidden){
+    const li = document.createElement("li");
+    li.className = "none"; li.textContent = "nada encontrado";
+    list.appendChild(li);
+  }
+  const extra = sugItems.length - Math.min(sugItems.length, SUG_MAX);
+  if(extra > 0 || sugHidden){
+    const li = document.createElement("li");
+    li.className = "foot";
+    const txt = document.createElement("span");
+    txt.textContent = [extra > 0 ? "+" + extra + " mais" : "",
+      sugHidden ? sugHidden + " oculto" + (sugHidden > 1 ? "s" : "") + " pelo filtro" : ""]
+      .filter(Boolean).join(" · ");
+    li.appendChild(txt);
+    if(sugHidden){
+      const b = document.createElement("button");
+      b.type = "button"; b.textContent = "limpar filtros";
+      b.addEventListener("click", ev => { ev.stopPropagation(); resetFilters(); $("#q").focus(); });
+      li.appendChild(b);
+    }
+    list.appendChild(li);
+  }
+  openSug();
+}
+function openSug(){
+  $("#q-list").hidden = false;
+  $("#q").setAttribute("aria-expanded", "true");
+}
+function closeSug(){
+  const list = $("#q-list");
+  list.hidden = true;
+  sugAt = -1;
+  $("#q").setAttribute("aria-expanded", "false");
+  $("#q").removeAttribute("aria-activedescendant");
+  list.querySelectorAll(".opt").forEach(el => el.classList.remove("on"));
+}
+function moveSug(d){
+  if($("#q-list").hidden && sugItems.length) drawSug();
+  const opts = [...$("#q-list").querySelectorAll(".opt")];
+  if(!opts.length) return;
+  sugAt = sugAt < 0 ? (d > 0 ? 0 : opts.length - 1)
+                    : (sugAt + d + opts.length) % opts.length;
+  opts.forEach((el, i) => el.classList.toggle("on", i === sugAt));
+  $("#q").setAttribute("aria-activedescendant", opts[sugAt].id);
+  opts[sugAt].scrollIntoView({block:"nearest"});
+}
+function chooseSug(i){
+  const opts = [...$("#q-list").querySelectorAll(".opt")];
+  const el = opts[i === undefined ? Math.max(sugAt, 0) : i];
+  if(!el) return;
+  closeSug();
+  center(el.dataset.id); pick(el.dataset.id);
+}
+function clearSearch(){
+  $("#q").value = ""; term = "";
+  runSearch();
+  $("#q").focus();
 }
 
 function currentChain(){
@@ -1556,14 +1715,31 @@ $("#btn-theme").onclick = () => {
 /* ══ Busca, teclado, redimensionamento ═══════════════════════════════════════ */
 
 $("#q").addEventListener("input", e => { term = e.target.value; runSearch(); });
+$("#q").addEventListener("focus", () => { if(sugItems.length) drawSug(); });
 $("#q").addEventListener("keydown", e => {
-  if(e.key !== "Enter" || !matches.length) return;
-  e.preventDefault();
-  matchAt = (matchAt + (e.shiftKey ? -1 : 1) + matches.length) % matches.length;
-  const id = matches[matchAt];
-  center(id); pick(id);
-  $("#q-count").textContent = (matchAt + 1) + "/" + matches.length;
+  if(e.key === "ArrowDown"){ e.preventDefault(); moveSug(1); return; }
+  if(e.key === "ArrowUp"){ e.preventDefault(); moveSug(-1); return; }
+  if(e.key === "Enter"){
+    if($("#q-list").hidden || !sugItems.length) return;
+    e.preventDefault(); chooseSug(); return;
+  }
+  if(e.key === "Escape"){
+    // primeiro fecha a lista, depois limpa o campo; só então o Esc global assume
+    if(!$("#q-list").hidden){ e.stopPropagation(); closeSug(); }
+    else if(term){ e.stopPropagation(); clearSearch(); }
+    return;
+  }
+  if(e.key === "Tab") closeSug();
 });
+// mousedown padrão tiraria o foco do campo antes do clique registrar
+$("#q-list").addEventListener("mousedown", e => e.preventDefault());
+$("#q-list").addEventListener("click", e => {
+  const li = e.target.closest(".opt");
+  if(!li) return;
+  chooseSug([...$("#q-list").querySelectorAll(".opt")].indexOf(li));
+});
+$("#q-clear").addEventListener("click", clearSearch);
+document.addEventListener("click", e => { if(!e.target.closest(".search")) closeSug(); });
 $("#btn-fit").onclick = fit;
 $("#panel-x").onclick = clearSel;
 $("#z-in").onclick = () => zoomTo(view.k * 1.25);
