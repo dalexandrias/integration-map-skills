@@ -29,7 +29,7 @@ from pathlib import Path
 
 LANES = {
     "frontend": 0, "job": 0, "app": 1, "topic": 2, "queue": 2,
-    "database": 3, "cache": 3, "external-api": 4, "file": 4,
+    "database": 3, "cache": 3, "external-api": 4, "file": 4, "tool": 5,
 }
 RELATIONS = {"publishes", "consumes", "calls", "reads", "writes",
              "schedules", "sends-file", "reads-file"}
@@ -42,7 +42,7 @@ RANK = {"high": 3, "medium": 2, "low": 1}
 PREFIX_TYPE = {
     "topic": "topic", "queue": "queue", "db": "database", "database": "database",
     "cache": "cache", "api": "external-api", "file": "file", "app": "app",
-    "svc": "app", "job": "job", "front": "frontend",
+    "svc": "app", "job": "job", "front": "frontend", "tool": "tool",
 }
 
 
@@ -80,16 +80,106 @@ def load_aliases(path: Path | None, warn: list[str]) -> dict[str, str]:
     return out
 
 
+CRED = re.compile(r"://[^/@\s]*:[^/@\s]*@")
+
+
+def scrub_endpoint(url: str) -> str:
+    """Tira credencial embutida na URL. O graph.json vai embutido num HTML que circula."""
+    return CRED.sub("://", url)
+
+
+def load_tools(path: Path | None, warn: list[str]) -> dict[str, dict]:
+    """Catálogo de ferramentas: id -> {name, category, owner, doc, match:[trechos de URL]}.
+
+    Duas formas. A curta é a mesma do aliases.yml e funciona sem pyyaml:
+
+        tool.hotknob: [hotknob.corp.br, /api/v1/flags]
+
+    A completa carrega os metadados e precisa de pyyaml:
+
+        tool.dynatrace:
+          name: Dynatrace
+          category: observabilidade
+          match: [dynatrace.com]
+    """
+    if not path or not path.is_file():
+        return {}
+    text = path.read_text(encoding="utf-8")
+    try:
+        import yaml
+        data = yaml.safe_load(text)
+    except ImportError:
+        data, rich = {}, False
+        for line in text.splitlines():
+            raw = line.split("#", 1)[0].rstrip()
+            if not raw.strip() or ":" not in raw:
+                continue
+            if raw[:1].isspace() or not raw.split(":", 1)[1].strip():
+                rich = True          # bloco aninhado: só o pyyaml lê
+                continue
+            k, v = raw.split(":", 1)
+            items = [x.strip().strip("'\"") for x in v.strip().strip("[]").split(",")]
+            data[k.strip()] = [i for i in items if i]
+        if rich:
+            warn.append("tools: entradas na forma completa foram ignoradas — "
+                        "instale pyyaml para lê-las")
+    out: dict[str, dict] = {}
+    for tid, val in (data or {}).items():
+        if isinstance(val, str):
+            val = [val]
+        if isinstance(val, list):
+            entry = {"match": [str(x) for x in val if x]}
+        elif isinstance(val, dict):
+            m = val.get("match") or []
+            entry = {"name": val.get("name"), "category": val.get("category"),
+                     "owner": val.get("owner"), "doc": val.get("doc"),
+                     "match": [str(x) for x in ([m] if isinstance(m, str) else m) if x]}
+        else:
+            warn.append(f"tools: '{tid}' com formato inesperado — ignorada")
+            continue
+        if not entry["match"]:
+            warn.append(f"tools: '{tid}' não tem nenhum trecho em 'match' — ignorada")
+            continue
+        out[tid] = entry
+    return out
+
+
+def tool_index(tools: dict[str, dict]) -> list[tuple[str, str]]:
+    """(trecho, id) ordenado por comprimento decrescente: o mais específico vence.
+
+    Sem essa ordem o resultado dependeria da ordem do arquivo, e cadastrar uma
+    ferramenta nova poderia roubar o casamento de outra sem ninguém perceber.
+    """
+    idx = [(f.strip().lower(), tid)
+           for tid, t in tools.items() for f in t["match"] if f.strip()]
+    idx.sort(key=lambda p: (-len(p[0]), p[0], p[1]))
+    return idx
+
+
+def match_tool(endpoint: str, idx: list[tuple[str, str]]):
+    """Devolve (id vencedor, todos os ids que casaram)."""
+    e = endpoint.lower()
+    hits = [(f, tid) for f, tid in idx if f in e]
+    if not hits:
+        return None, []
+    return hits[0][1], sorted({tid for _, tid in hits})
+
+
 def find_scans(root: Path, depth: int) -> list[Path]:
     pattern = "/".join(["*"] * depth) + "/docs/architecture/integrations.json"
     return sorted(root.glob(pattern)) + sorted(root.glob("docs/architecture/integrations.json"))
 
 
 def build(root: Path, out_dir: Path, aliases_path: Path | None, depth: int,
-          auto_merge: bool = True):
+          auto_merge: bool = True, tools_path: Path | None = None):
     warn: list[str] = []
     alias = load_aliases(aliases_path, warn)
     canon = lambda i: alias.get(i, i)
+    tools = load_tools(tools_path, warn)
+    tidx = tool_index(tools)
+    used_tools: set[str] = set()
+    unmatched: dict[str, str] = {}      # endpoint -> id do alvo, para o aviso de candidata
+    seen_amb: set[tuple] = set()
 
     nodes: dict[str, dict] = {}
     edges: list[dict] = []
@@ -160,6 +250,25 @@ def build(root: Path, out_dir: Path, aliases_path: Path | None, depth: int,
                 warn.append(f"{app_id}: integração sem 'target' ou 'relation' — ignorada")
                 continue
             target = canon(target_raw)
+
+            # Ferramenta reconhecida pelo trecho de URL. O catálogo manda na identidade do
+            # nó, como o aliases.yml manda quando a chave é o id — só que aqui a chave é a
+            # prova (o endpoint), e não o nome que alguém digitou.
+            endpoint = scrub_endpoint(str(item.get("endpoint") or "").strip())
+            tool_id = None
+            if endpoint and tidx:
+                tool_id, all_hits = match_tool(endpoint, tidx)
+                if tool_id:
+                    if len(all_hits) > 1 and (endpoint, tuple(all_hits)) not in seen_amb:
+                        seen_amb.add((endpoint, tuple(all_hits)))
+                        warn.append(f"tools: endpoint '{endpoint}' casa com "
+                                    + " e ".join(all_hits)
+                                    + f" — venceu '{tool_id}' pelo trecho mais longo")
+                    target = tool_id
+                    used_tools.add(tool_id)
+                else:
+                    unmatched.setdefault(endpoint, target)
+
             if relation not in RELATIONS:
                 warn.append(f"{app_id} → {target}: relação '{relation}' não é válida")
             conf = item.get("confidence", "high")
@@ -172,17 +281,28 @@ def build(root: Path, out_dir: Path, aliases_path: Path | None, depth: int,
             referenced.add(target)
             # nó alvo descrito pela própria integração; a primeira descrição vence
             if target not in nodes:
-                ttype = item.get("target_type") or infer_type(target)
-                if ttype not in LANES:
-                    warn.append(f"{target}: target_type '{ttype}' desconhecido")
-                    ttype = infer_type(target)
-                nodes[target] = {
-                    "id": target, "name": item.get("target_name") or target.split(".", 1)[-1],
-                    "type": ttype, "detail": item.get("target_detail"),
-                    "criticality": item.get("criticality", "medium"),
-                    "owner": item.get("target_owner"), "doc": None, "_stub": True,
-                }
-            elif nodes[target].get("_stub") and item.get("target_detail") and not nodes[target].get("detail"):
+                if tool_id:
+                    t = tools[tool_id]
+                    nodes[target] = {
+                        "id": target, "name": t.get("name") or target.split(".", 1)[-1],
+                        "type": "tool", "detail": t.get("category"),
+                        "criticality": item.get("criticality", "medium"),
+                        "owner": t.get("owner"), "doc": t.get("doc"), "_stub": True,
+                    }
+                else:
+                    ttype = item.get("target_type") or infer_type(target)
+                    if ttype not in LANES:
+                        warn.append(f"{target}: target_type '{ttype}' desconhecido")
+                        ttype = infer_type(target)
+                    nodes[target] = {
+                        "id": target, "name": item.get("target_name") or target.split(".", 1)[-1],
+                        "type": ttype, "detail": item.get("target_detail"),
+                        "criticality": item.get("criticality", "medium"),
+                        "owner": item.get("target_owner"), "doc": None, "_stub": True,
+                    }
+            elif (nodes[target].get("_stub") and nodes[target]["type"] != "tool"
+                  and item.get("target_detail") and not nodes[target].get("detail")):
+                # no nó de ferramenta o catálogo é a autoridade; o scan não sobrescreve
                 nodes[target]["detail"] = item["target_detail"]
 
             src, dst = (target, app_id) if relation in INVERT else (app_id, target)
@@ -192,12 +312,25 @@ def build(root: Path, out_dir: Path, aliases_path: Path | None, depth: int,
                 "criticality": item.get("criticality", "medium"),
                 "timeout": item.get("timeout"), "retry": item.get("retry"),
                 "evidence": item.get("evidence"), "confidence": conf,
-                "note": item.get("note"),
+                "note": item.get("note"), "endpoint": endpoint or None,
             })
 
         for u in data.get("unresolved") or []:
             warn.append(f"{app_id}: não resolvido — {u.get('hint','?')} "
                         f"({u.get('where','?')}): {u.get('why','')}".strip())
+
+    # ── Catálogo de ferramentas ──────────────────────────────────────────
+    # Só vira aviso o endpoint que caiu num nó externo: endpoint apontando para outra
+    # aplicação ou para um banco é o caso normal, e alertar sobre ele afogaria a lista.
+    if tidx:
+        for ep, tgt in sorted(unmatched.items()):
+            n = nodes.get(tgt)
+            if n and n.get("type") == "external-api":
+                warn.append(f"tools: '{tgt}' aponta para {ep} e não casou com nenhuma "
+                            f"ferramenta — candidata a cadastro")
+        for tid in sorted(set(tools) - used_tools):
+            warn.append(f"tools: '{tid}' cadastrada mas nunca casou — "
+                        f"trecho errado ou entrada morta")
 
     # ── Reconciliação de host × aplicação ────────────────────────────────
     # Um scan que só viu "http://svc-cotacao.interno:8080" grava api.svc-cotacao.interno,
@@ -314,6 +447,10 @@ def summarize(graph: dict, scans: int) -> None:
         by_proto[e.get("protocol") or "?"] += 1
     if by_proto:
         print("por protocolo: " + "  ".join(f"{k}={v}" for k, v in sorted(by_proto.items())))
+    tools = [n for n in nodes if n["type"] == "tool"]
+    if tools:
+        users = {e["from"] for e in edges if e["to"] in {t["id"] for t in tools}}
+        print(f"ferramentas: {len(tools)}   usadas por {len(users)} aplicação(ões)")
     low = [e for e in edges if e["confidence"] == "low"]
     if low:
         print(f"\nconfiança baixa ({len(low)}) — revisar:")
@@ -335,6 +472,8 @@ def main() -> int:
     ap.add_argument("--out", type=Path, default=Path("integration-map"), help="pasta de saída")
     ap.add_argument("--template", type=Path, help="map.html modelo (padrão: ../assets/map.html)")
     ap.add_argument("--aliases", type=Path, help="aliases.yml para unificar ids do mesmo sistema")
+    ap.add_argument("--tools", type=Path,
+                    help="tools.yml: catálogo de ferramentas reconhecidas por trecho de URL")
     ap.add_argument("--depth", type=int, default=1, help="níveis de pasta a procurar (padrão 1)")
     ap.add_argument("--no-auto-merge", action="store_true",
                     help="não funde nó api.<host> com a aplicação de mesmo nome")
@@ -347,7 +486,8 @@ def main() -> int:
     out = args.out.expanduser()
 
     graph, scans = build(root, out, args.aliases.expanduser() if args.aliases else None,
-                         args.depth, auto_merge=not args.no_auto_merge)
+                         args.depth, auto_merge=not args.no_auto_merge,
+                         tools_path=args.tools.expanduser() if args.tools else None)
     summarize(graph, scans)
 
     if args.check:

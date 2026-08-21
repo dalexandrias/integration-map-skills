@@ -46,6 +46,8 @@ O front raramente fala com banco; ele fala com APIs. É isso que você procura.
 Um front que chama três aplicações internas gera três integrações `calls` com `protocol: rest`.
 Use o **nome do repositório** da aplicação de destino como `target` sempre que reconhecer;
 quando só tiver a URL, use `api.<host>` e explique no `note` — o `aliases.yml` reconcilia depois.
+Em todo caso grave a URL inteira em `endpoint`, verbatim: é por ela que o `tools.yml` reconhece
+ferramenta corporativa no build.
 
 Rotas de API do próprio Next vão em `exposes` com `kind: rest`.
 

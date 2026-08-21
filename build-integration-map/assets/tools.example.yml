@@ -1,0 +1,65 @@
+# Catálogo de ferramentas — modelo. Copie para a sua pasta de trabalho como tools.yml
+# e edite; este arquivo em assets/ é só ponto de partida, como o map.html.
+#
+#   python scripts/build_graph.py ~/repos --out ~/integration-map \
+#          --aliases ~/integration-map/aliases.yml --tools ~/integration-map/tools.yml
+#
+# O casamento é por TRECHO do endpoint que o scan gravou, comparado em minúsculas.
+# Trecho mais longo vence, então quando duas ferramentas competirem, desempate
+# alongando o trecho — nunca reordenando o arquivo.
+#
+# Duas formas. A curta é a mesma do aliases.yml e funciona sem pyyaml:
+#
+#     tool.alguma-coisa: [trecho1, trecho2]
+#
+# A completa carrega os metadados que o mapa mostra na ficha, e precisa de pyyaml.
+
+# ── A que casa com as fixtures deste repositório ────────────────────────────
+# Rode `--tools assets/tools.example.yml` sobre `fixtures/` para ver o recurso
+# funcionando: o nó api.osb vira tool.osb, na faixa Ferramentas.
+tool.osb:
+  name: Barramento OSB
+  category: integração
+  owner: Plataforma
+  doc: https://wiki.exemplo.corp/osb
+  match:
+    - /ProxyServices
+    - osb-prd.interno
+
+# ── Exemplos do que costuma existir num parque grande ───────────────────────
+# Apague os que não usa. Uma entrada que nunca casa vira aviso no build, de
+# propósito: catálogo que não é podado apodrece em silêncio.
+
+tool.dynatrace:
+  name: Dynatrace
+  category: observabilidade
+  owner: Plataforma
+  doc: https://wiki.exemplo.corp/dynatrace
+  match:
+    - dynatrace.com
+    - /api/v2/metrics
+
+tool.grafana:
+  name: Grafana
+  category: observabilidade
+  match:
+    - grafana.exemplo.corp
+    - /api/dashboards
+
+tool.vault:
+  name: HashiCorp Vault
+  category: segredos
+  owner: Segurança
+  doc: https://wiki.exemplo.corp/vault
+  match:
+    - vault.exemplo.corp
+    - /v1/secret/data
+
+tool.sonarqube:
+  name: SonarQube
+  category: qualidade
+  match:
+    - sonar.exemplo.corp
+
+# forma curta: sem metadados, o nome do nó sai do próprio id
+tool.artifactory: [artifactory.exemplo.corp, /artifactory/api]

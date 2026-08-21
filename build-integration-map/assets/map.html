@@ -18,7 +18,7 @@
   --shadow:0 1px 2px rgba(21,30,40,.06),0 8px 24px rgba(21,30,40,.08);
   --t-frontend:#7C3AED; --t-job:#4D7C0F; --t-app:#1D4ED8; --t-topic:#DB2777;
   --t-queue:#9F1239; --t-database:#0F766E; --t-cache:#0891B2;
-  --t-external-api:#B45309; --t-file:#57534E;
+  --t-external-api:#B45309; --t-file:#57534E; --t-tool:#4F46E5;
   --sans:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
   --mono:ui-monospace,SFMono-Regular,"Cascadia Mono","Segoe UI Mono",Menlo,Consolas,monospace;
 }
@@ -37,7 +37,7 @@
     --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.45);
     --t-frontend:#A78BFA; --t-job:#A3E635; --t-app:#60A5FA; --t-topic:#F472B6;
     --t-queue:#FB7185; --t-database:#2DD4BF; --t-cache:#22D3EE;
-    --t-external-api:#FBBF24; --t-file:#A8A29E;
+    --t-external-api:#FBBF24; --t-file:#A8A29E; --t-tool:#818CF8;
   }
 }
 :root[data-theme="dark"]{
@@ -48,7 +48,7 @@
   --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.45);
   --t-frontend:#A78BFA; --t-job:#A3E635; --t-app:#60A5FA; --t-topic:#F472B6;
   --t-queue:#FB7185; --t-database:#2DD4BF; --t-cache:#22D3EE;
-  --t-external-api:#FBBF24; --t-file:#A8A29E;
+  --t-external-api:#FBBF24; --t-file:#A8A29E; --t-tool:#818CF8;
 }
 </style>
 
@@ -481,9 +481,10 @@ const TYPES = {
   database:      {label:"Banco",          lane:3},
   cache:         {label:"Cache",          lane:3},
   "external-api":{label:"API externa",    lane:4},
-  file:          {label:"Arquivo / SFTP", lane:4}
+  file:          {label:"Arquivo / SFTP", lane:4},
+  tool:          {label:"Ferramenta",     lane:5}
 };
-const LANE_NAMES = ["Entradas","Aplicações","Mensageria","Dados","Externos"];
+const LANE_NAMES = ["Entradas","Aplicações","Mensageria","Dados","Externos","Ferramentas"];
 const REL = {publishes:"publica", consumes:"consome", calls:"chama", reads:"lê",
   writes:"escreve", schedules:"agenda", "sends-file":"envia arquivo", "reads-file":"lê arquivo"};
 const CRIT = {high:"alta", medium:"média", low:"baixa"};
@@ -715,6 +716,18 @@ function layout(){
   }
   lanes.forEach(g => g.sort((a, b) => seq.get(a.id) - seq.get(b.id)));
 
+  /* Varreduras derivadas do número de faixas. Escritas à mão ([0,1,2,3,4]) elas
+     deixariam de fora, em silêncio, qualquer faixa acrescentada depois — foi o que
+     aconteceria com Ferramentas. Medido num grafo de 400 nós com 40 ferramentas, o
+     efeito no desenho é desprezível (632 contra 633 cruzamentos), porque a faixa
+     ainda é posicionada de carona pelos vizinhos; o motivo de derivar é não deixar
+     um laço pular uma faixa sem ninguém notar. O X começa pelas Aplicações, que é a
+     faixa que ancora o resto. */
+  const SWEEP = [...lanes.keys()];
+  const SWEEP_REV = [...SWEEP].reverse();
+  const SWEEP_X = [1, ...SWEEP.filter(i => i !== 1)];
+  const SWEEP_X_REV = [...SWEEP_X].reverse();
+
   const pos = new Map();
   const normalize = () => lanes.forEach(g =>
     g.forEach((n, i) => pos.set(n.id, g.length > 1 ? i / (g.length - 1) : 0.5)));
@@ -744,7 +757,7 @@ function layout(){
   let best = {c: crossings(), snap: lanes.map(g => g.map(n => n.id))};
   const passes = bundles.length > 1200 ? 8 : 24;
   for(let it = 0; it < passes; it++){
-    const order = it % 2 === 0 ? [0,1,2,3,4] : [4,3,2,1,0];
+    const order = it % 2 === 0 ? SWEEP : SWEEP_REV;
     for(const li of order){
       const g = lanes[li];
       if(g.length < 2) continue;
@@ -813,7 +826,7 @@ function layout(){
   // X pela mediana dos vizinhos, com a ordem preservada e a folga garantida:
   // nó compartilhado (Oracle, barramento) acaba centralizado sob quem o usa
   for(let it = 0; it < 40; it++){
-    const order = it % 2 === 0 ? [1,0,2,3,4] : [4,3,2,0,1];
+    const order = it % 2 === 0 ? SWEEP_X : SWEEP_X_REV;
     for(const li of order){
       const g = lanes[li];
       if(!g.length) continue;
@@ -1044,10 +1057,11 @@ function applyFilter(){
   stats(vis);
   highlight();
 }
+const APP_TYPES = new Set(["app", "frontend", "job"]);
 function stats(vis){
-  const apps = G.nodes.filter(n => ["app","frontend","job"].includes(n.type));
+  const apps = G.nodes.filter(n => APP_TYPES.has(n.type));
   $("#s-apps").textContent = apps.length;
-  $("#s-doc").textContent = G.nodes.filter(n => n.doc).length;
+  $("#s-doc").textContent = G.nodes.filter(n => n.doc && APP_TYPES.has(n.type)).length;
   $("#s-nodes").textContent = vis;
   $("#s-edges").textContent = G.edges.filter(e =>
     shown(byId.get(e.from)) && shown(byId.get(e.to))).length;
@@ -1285,6 +1299,7 @@ function openPanel(id){
     return `<span class="link"><b data-go="${esc(other.id)}">${esc(other.name)}</b>
       <span class="det">${esc(edgeText(e))}${e.timeout ? " · timeout " + esc(e.timeout) : ""}${e.retry ? " · retry " + esc(e.retry) : ""}</span>
       ${e.evidence ? `<span class="ev">${esc(e.evidence)}</span>` : ""}
+      ${e.endpoint ? `<span class="ev">${esc(e.endpoint)}</span>` : ""}
       ${e.conf === "low" ? '<span class="tag low">indício</span>' : ""}
       ${e.crit === "high" ? '<span class="tag crit">crítica</span>' : ""}
       ${e.note ? `<span class="ev">${esc(e.note)}</span>` : ""}</span>`;
@@ -1344,8 +1359,9 @@ function openPanel(id){
     <div class="sec"><h4>Envia para (${out.length})</h4>${list(out, "out")}</div>
     ${(n.exposes || []).length ? `<div class="sec"><h4>Expõe (${n.exposes.length})</h4>${n.exposes.map(x =>
       `<span class="link"><span class="det">${esc(x.kind || "")} · ${esc(x.route || x.name || "")}</span></span>`).join("")}</div>` : ""}
-    ${n.doc ? `<a class="doclink" href="${esc(n.doc)}">abrir ficha completa →</a>`
-            : '<p class="none" style="margin-top:14px">sem ficha — nó citado por outra aplicação</p>'}`;
+    ${n.doc ? `<a class="doclink" href="${esc(n.doc)}"${n.type === "tool" ? ' target="_blank" rel="noopener"' : ""}>${n.type === "tool" ? "abrir documentação" : "abrir ficha completa"} →</a>`
+            : (n.type === "tool" ? '<p class="none" style="margin-top:14px">sem documentação no catálogo</p>'
+                                 : '<p class="none" style="margin-top:14px">sem ficha — nó citado por outra aplicação</p>')}`;
   $("#panel").classList.add("open");
   $("#panel-body").querySelectorAll("[data-go]").forEach(b =>
     b.addEventListener("click", () => { pick(b.dataset.go); center(b.dataset.go); }));

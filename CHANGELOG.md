@@ -1,5 +1,44 @@
 # Changelog
 
+## 0.4.0
+
+Catálogo de ferramentas: reconhecer, por trecho de URL, qual ferramenta corporativa cada
+aplicação usa.
+
+- **Campo `endpoint` no `integrations.json`.** O scan normaliza o host para decidir a
+  identidade do nó (`svc-cotacao.interno:8080` → `svc-cotacao`), e com isso a URL se perdia:
+  o que sobrava dela ficava solto em texto livre, em campos diferentes a cada repositório.
+  Agora `target` é identidade e `endpoint` é prova — a URL verbatim, sem normalizar, sem
+  credencial embutida.
+- **`tools.yml`, ao lado do `aliases.yml`.** Enquanto o `aliases.yml` reconcilia pelo id,
+  este reconcilia pela URL: quando o `endpoint` contém um dos trechos cadastrados, o nó vira
+  a ferramenta, com nome canônico, categoria, dono e link de documentação. A aresta é
+  preservada inteira — relação, protocolo, contrato, criticidade e evidência —, e duas
+  aplicações que chamavam o mesmo host com nomes diferentes passam a chegar no mesmo nó.
+  Duas formas: a curta, igual à do `aliases.yml`, funciona sem `pyyaml`; a completa carrega
+  os metadados.
+- **O casamento acontece no build, não no scan.** É o que faz escalar: cadastrar uma
+  ferramenta nova e reconstruir reconhece as 80 aplicações na hora, sem re-escanear nenhum
+  repositório. Trecho mais longo vence, então a ordem do arquivo não influencia o resultado.
+- **Faixa *Ferramentas* no mapa**, tipo de nó `tool`, com cor própria nas duas paletas.
+  Filtro, busca, impacto e caminho funcionam nela sem mudança; como é faixa própria, dá para
+  desligá-la quando quiser só o fluxo de negócio.
+- **Três avisos novos**, no espírito dos que já existem: endpoint ambíguo entre duas
+  ferramentas, endpoint externo que não casou com nenhuma (fila de trabalho) e entrada
+  cadastrada que nunca casou (entrada morta). O segundo só dispara para nó externo —
+  endpoint apontando para outra aplicação é o caso normal e não vira ruído.
+- **O `endpoint` viaja na aresta e aparece na ficha**, para a associação ser auditável: dá
+  para ver por que aquele nó virou aquela ferramenta.
+- **Varreduras de faixa derivadas** no layout, no lugar dos índices escritos à mão
+  (`[0,1,2,3,4]`), que deixariam a faixa nova de fora em silêncio. Medido num grafo de 400
+  nós com 40 ferramentas, o efeito no desenho é desprezível — 632 contra 633 cruzamentos —,
+  porque a faixa ainda era posicionada de carona pelos vizinhos; a mudança é para o laço não
+  pular uma faixa sem ninguém notar.
+- **"Com ficha" no resumo** passa a contar só aplicação: o link de documentação da ferramenta
+  não é ficha e inflaria o número.
+
+Sem `--tools`, a saída é byte a byte a mesma de antes — o recurso é aditivo.
+
 ## 0.3.2
 
 - **Setas soltavam das caixas ao arrastar um nó.** O traçado era escolhido por `lane`/`row`,

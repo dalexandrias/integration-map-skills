@@ -107,6 +107,28 @@ ${COBERTURA_URL} = consulta-cobertura.interno → target: consulta-cobertura  (a
 https://api.serasa.com.br/v2/score          → target: api.serasa           (external-api)
 ```
 
+**Grave também a URL inteira em `endpoint`.** A normalização acima decide a *identidade* do
+nó; o `endpoint` guarda a *prova*, verbatim, sem normalizar nada:
+
+```json
+{ "target": "api.serasa", "endpoint": "https://api.serasa.com.br/v2/score", ... }
+```
+
+São coisas diferentes e é essa separação que faz o catálogo de ferramentas funcionar: a
+`build-integration-map` casa trechos de URL contra o `tools.yml` e converte o nó na
+ferramenta cadastrada, sem que ninguém precise re-escanear nada quando uma ferramenta nova
+entra no catálogo.
+
+Duas regras sobre o `endpoint`:
+
+- **Nunca transporte credencial.** `https://user:senha@host/x` grava como `https://host/x`.
+  Ele vai parar no `graph.json`, que é embutido num HTML que circula por e-mail e comitê.
+- **Uma URL por integração.** Se houver uma por ambiente, grave a de produção; a evidência
+  continua apontando o arquivo onde as outras estão.
+
+Quando a URL só existe numa variável não resolvida, não invente: siga registrando em
+`unresolved` como hoje, e deixe o `endpoint` de fora.
+
 Na dúvida entre os dois, prefira tratar como aplicação interna: a `build-integration-map`
 avisa quando um `api.<host>` bate com uma aplicação conhecida e funde os dois, mas ela não
 tem como adivinhar o contrário. Errar para o lado de "interno" é reversível; errar para o

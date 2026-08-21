@@ -33,8 +33,9 @@ python scripts/build_graph.py ~/repos --check
 # gerar o mapa
 python scripts/build_graph.py ~/repos --out ~/integration-map
 
-# com reconciliação de nomes
-python scripts/build_graph.py ~/repos --out ~/integration-map --aliases ~/integration-map/aliases.yml
+# com reconciliação de nomes e catálogo de ferramentas
+python scripts/build_graph.py ~/repos --out ~/integration-map \
+       --aliases ~/integration-map/aliases.yml --tools ~/integration-map/tools.yml
 ```
 
 Saída: `graph.json` e `map.html` na pasta `--out`. O `map.html` abre com duplo clique, sem
@@ -61,7 +62,7 @@ sistema foi citado com nomes diferentes por equipes diferentes: `api.osb`, `barr
 `ESB_CORP`. Se não reconciliar, um sistema vira três nós e o mapa mente.
 
 Não corrija os scans — eles devem continuar fiéis ao que está no código. Reconcilie em
-`aliases.yml`, na pasta de saída:
+`aliases.yml`, na pasta de saída (para ferramenta, veja o `tools.yml` mais abaixo):
 
 ```yaml
 # id canônico: [outros nomes vistos pelos scans]
@@ -70,8 +71,56 @@ db.orcl-prd.SEGURO: [db.oracle.seguro, ORCL_SEGURO]
 consulta-cobertura: [api.consulta-cobertura, svc-cobertura]
 ```
 
-Esse arquivo é mantido à mão e cresce a cada rodada. É o único artefato do conjunto que
-justifica edição manual, porque codifica conhecimento que não está em nenhum repositório.
+Esse arquivo é mantido à mão e cresce a cada rodada. Junto com o `tools.yml`, é o que
+justifica edição manual no conjunto: codifica conhecimento que não está em repositório
+nenhum.
+
+## O catálogo de ferramentas
+
+`aliases.yml` reconcilia identidade **pelo id**. O `tools.yml` reconcilia **pela URL** — e é
+o que transforma "mais um host esquisito em Externos" numa ferramenta corporativa com nome,
+dono e documentação.
+
+```yaml
+# forma curta, igual à do aliases.yml, funciona sem pyyaml
+tool.artifactory: [artifactory.corp.br, /artifactory/api]
+
+# forma completa, com os metadados que aparecem na ficha; precisa de pyyaml
+tool.vault:
+  name: HashiCorp Vault
+  category: segredos
+  owner: Segurança
+  doc: https://wiki.corp/vault
+  match:
+    - vault.corp.br
+    - /v1/secret/data
+```
+
+Quando o `endpoint` de uma integração contém um dos trechos, o nó do outro lado vira aquela
+ferramenta: id canônico, faixa **Ferramentas**, nome e metadados do catálogo. A aresta é
+preservada inteira — relação, protocolo, contrato, criticidade e evidência. Duas aplicações
+que chamavam o mesmo host com nomes diferentes passam a chegar no mesmo nó.
+
+O casamento é por **trecho**, comparado em minúsculas, e o **trecho mais longo vence**. Para
+desempatar duas ferramentas que competem, alongue o trecho — nunca reordene o arquivo, porque
+a ordem não influencia o resultado de propósito.
+
+Como o casamento acontece no build e não no scan, **cadastrar uma ferramenta nova e rodar de
+novo já reconhece as 80 aplicações**, sem re-escanear nenhum repositório.
+
+`assets/tools.example.yml` é um ponto de partida para copiar e editar.
+
+### Os três avisos do catálogo
+
+| Aviso | O que fazer |
+|---|---|
+| `endpoint 'X' casa com tool.a e tool.b` | trecho ambíguo; alongue o de quem deve vencer |
+| `'api.y' aponta para X e não casou com nenhuma ferramenta` | candidata a cadastro — é a fila de trabalho |
+| `'tool.z' cadastrada mas nunca casou` | entrada morta ou trecho errado; corrija ou apague |
+
+O segundo só aparece para nó **externo**: endpoint apontando para outra aplicação ou para um
+banco é o caso normal e não vira ruído. O terceiro é o que impede o catálogo de apodrecer em
+silêncio.
 
 ## Passos
 
