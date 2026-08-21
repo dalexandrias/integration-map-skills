@@ -9,8 +9,8 @@
   "exposes": [],
   "integrations": [
     {"target":"db.adw.DW_SINISTRO","target_name":"ADW / DW_SINISTRO","target_type":"database","target_detail":"Autonomous DW (dsn adw_high)","relation":"writes","protocol":"jdbc","contract":"FT_CONCILIACAO","criticality":"high","evidence":"sync.py:21","confidence":"high","note":"grava em produção; comentário no código diz que o faturamento lê essa tabela todo dia 1"},
-    {"target":"file.retorno-banco-conveniado","target_name":"Retorno banco conveniado","target_type":"file","target_detail":"SFTP · RET_YYYYMMDD.txt","relation":"reads-file","protocol":"sftp","contract":"posicional, larguras 20/20/200","criticality":"high","evidence":"sync.py:13","confidence":"high"},
-    {"target":"file.parametros-conciliacao","target_name":"Planilha de parâmetros","target_type":"file","target_detail":"\\\\fileserver\\financeiro\\parametros_conciliacao.xlsx, aba 'regras'","relation":"reads-file","protocol":"file","criticality":"high","evidence":"sync.py:26","confidence":"high","note":"regra de negócio mora numa planilha em file server — ponto único de falha sem versionamento"}
+    {"target":"file.retorno-banco-conveniado","target_name":"Retorno banco conveniado","target_type":"file","target_detail":"SFTP · RET_YYYYMMDD.txt","relation":"reads-file","endpoint":"sftp://sftp.bancoconveniado.com.br/saida/RET_YYYYMMDD.txt","protocol":"sftp","contract":"posicional, larguras 20/20/200","criticality":"high","evidence":"sync.py:13","confidence":"high"},
+    {"target":"file.parametros-conciliacao","target_name":"Planilha de parâmetros","target_type":"file","target_detail":"\\\\fileserver\\financeiro\\parametros_conciliacao.xlsx, aba 'regras'","relation":"reads-file","endpoint":"\\\\fileserver\\financeiro\\parametros_conciliacao.xlsx","protocol":"file","criticality":"high","evidence":"sync.py:26","confidence":"high","note":"regra de negócio mora numa planilha em file server — ponto único de falha sem versionamento"}
   ],
   "unresolved": [
     {"hint":"SFTP_PWD / ADW_PWD","where":"sync.py:14","why":"variáveis de ambiente sem .env.example nem manifest no repositório"}

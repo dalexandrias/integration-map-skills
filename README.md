@@ -25,7 +25,7 @@ qualquer uma sem tocar nas outras — e automatizar depois, quando quiser.
 - [Ordem de execução](#ordem-de-execução)
 - [O que é cada arquivo](#o-que-é-cada-arquivo)
 - [Instalação](#instalação)
-- [Os dois arquivos que você mantém à mão](#os-dois-arquivos-que-você-mantém-à-mão)
+- [Os três arquivos que você mantém à mão](#os-três-arquivos-que-você-mantém-à-mão)
 - [Regras que sustentam a confiabilidade](#regras-que-sustentam-a-confiabilidade)
 - [Regressão com as fixtures](#regressão-com-as-fixtures)
 - [Automatizar depois](#automatizar-depois)
@@ -133,6 +133,7 @@ então escale.
 | `SKILL.md` | A skill. Comandos, como ler os avisos, o papel do `aliases.yml` |
 | `scripts/build_graph.py` | Varre os `integrations.json`, funde nós compartilhados, valida, gera `graph.json` e injeta no `map.html`. Só biblioteca padrão (`pyyaml` opcional, só para o `aliases.yml`) |
 | `scripts/sync-repos.sh` | Clona ou atualiza em lote os repositórios do `repos.txt`, usando o git já autenticado na máquina. Clone parcial e raso |
+| `assets/tools.example.yml` | Catálogo de ferramentas — **modelo** para copiar e editar |
 | `assets/map.html` | O visualizador — **modelo**. Arquivo único, HTML+CSS+JS puro, sem nenhuma dependência externa (nem fontes). Faixas por camada com ordenação que reduz cruzamentos, ficha por nó, os dois sentidos de propagação de falha, caminho entre dois nós, tema claro/escuro, exportação PNG/SVG e impressão |
 
 ### `fixtures/`
@@ -171,7 +172,7 @@ As mesmas pastas funcionam em outros agentes: `~/.claude/skills/` no Claude Code
 
 ---
 
-## Os dois arquivos que você mantém à mão
+## Os três arquivos que você mantém à mão
 
 Todo o resto é gerado e pode ser refeito sem medo. Estes dois carregam conhecimento que não
 está em repositório nenhum:
@@ -190,6 +191,25 @@ consulta-cobertura: [api.consulta-cobertura, svc-cobertura]
 ```
 
 Ele cresce a cada rodada, alimentado pelos avisos do `build_graph.py`.
+
+**`tools.yml`** — o catálogo de ferramentas. Enquanto o `aliases.yml` reconcilia pelo id, este
+reconcilia **pela URL**: quando o `endpoint` que o scan gravou contém um dos trechos
+cadastrados, o nó vira a ferramenta, com nome, dono e link de documentação, na faixa
+*Ferramentas* do mapa.
+
+```yaml
+tool.vault:
+  name: HashiCorp Vault
+  category: segredos
+  doc: https://wiki.corp/vault
+  match: [vault.corp.br, /v1/secret/data]
+
+tool.artifactory: [artifactory.corp.br]   # forma curta, sem metadados
+```
+
+Como o casamento acontece no build, cadastrar uma ferramenta e reconstruir reconhece as 80
+aplicações na hora, sem re-escanear nada. `build-integration-map/assets/tools.example.yml` é
+o ponto de partida.
 
 ---
 
@@ -286,8 +306,9 @@ mudou, em vez do parque inteiro.
 ~/integration-map/
 ├── repos.txt              mantido à mão
 ├── aliases.yml            mantido à mão
+├── tools.yml              mantido à mão
 ├── graph.json             gerado
 └── map.html               gerado, abre com duplo clique
 ```
 
-Só dois arquivos são mantidos à mão. É isso que permite rodar de novo sem medo.
+Só três arquivos são mantidos à mão. É isso que permite rodar de novo sem medo.

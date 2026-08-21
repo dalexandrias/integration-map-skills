@@ -187,6 +187,10 @@ Não vira integração, mas alimenta `app.envs` e a ficha depois:
 
 ---
 
+URL que aparece em `.properties`, `.yml` ou constante: além de normalizar o host para o
+`target`, grave o literal completo em `endpoint`. É o que permite o `tools.yml` reconhecer
+barramento, cofre e observabilidade sem re-escanear os repositórios.
+
 ## 12. Legado: onde a integração se esconde
 
 Em aplicação WebLogic antiga em MVC ou camadas, integração raramente está numa camada de

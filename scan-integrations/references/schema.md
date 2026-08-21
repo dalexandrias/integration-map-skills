@@ -34,6 +34,7 @@ Chaves em inglês, valores de texto livre em português.
       "target_type": "topic",
       "target_detail": "12 partições · retenção 7d",
       "relation": "publishes",
+      "endpoint": null,
       "protocol": "kafka",
       "contract": "avro CotacaoSolicitada v2",
       "criticality": "high",
@@ -71,6 +72,13 @@ chama shell, config que guarda a URL usada em outro ponto), use a seta:
 valor entre as integrações que chegam nele — um schema lido por três aplicações críticas é
 crítico, mesmo que a primeira aresta encontrada fosse baixa. Não tente ajustar isso no scan.
 
+`endpoint` é a URL, host ou caminho **verbatim**, exatamente como está no código ou na
+configuração, sem a normalização de host que o `target` sofre. `target` é identidade;
+`endpoint` é prova. É contra ele que a `build-integration-map` casa o catálogo de
+ferramentas (`tools.yml`), por trecho de URL. Nunca grave credencial embutida:
+`https://user:senha@host/x` vira `https://host/x`. Omita quando não houver URL literal —
+variável não resolvida continua indo para `unresolved`.
+
 `target_name`, `target_type` e `target_detail` descrevem o nó do outro lado. Você só precisa
 preencher quando for um nó compartilhado (tópico, fila, banco, sistema externo); se o alvo é
 outra aplicação que tem repositório próprio, basta o `target` com o nome do repositório — a
@@ -91,6 +99,12 @@ ficha dela descreve o resto.
 | `cache` | Dados | Redis, Coherence, cache compartilhado |
 | `external-api` | Externos | sistema fora do domínio da área |
 | `file` | Externos | fluxo de arquivo, SFTP, diretório, planilha |
+| `tool` | Ferramentas | ferramenta corporativa reconhecida pelo catálogo |
+
+O `tool` normalmente **não é escrito pelo scan**: ele nasce na `build-integration-map`,
+quando o `endpoint` de uma integração casa com uma entrada do `tools.yml`. Escreva
+`target_type: tool` à mão só se a ferramenta for óbvia e você quiser garantir a faixa mesmo
+sem catálogo.
 
 **`relation`** — o gerador inverte `consumes` e `reads-file` para a seta apontar no sentido
 do fluxo de dados, então declare sempre do ponto de vista da aplicação:
@@ -118,6 +132,7 @@ O que faz duas aplicações apontarem para o mesmo nó em vez de criarem dois:
 ```
 topic.<nome-do-topico>     queue.<nome-jndi>      db.<instancia>.<schema>
 api.<sistema>              cache.<nome>           file.<nome-do-fluxo>
+tool.<nome-da-ferramenta>  ← cadastrada no tools.yml da build-integration-map
 <nome-do-repositorio>      ← para aplicação interna
 ```
 
